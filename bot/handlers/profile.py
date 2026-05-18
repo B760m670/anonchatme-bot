@@ -44,7 +44,7 @@ async def show_profile(message: Message, user_record: dict | None = None) -> Non
 
 @router.callback_query(F.data == "profile:edit_age")
 async def edit_age(call: CallbackQuery, state: FSMContext) -> None:
-    await call.message.answer("Введи новый возраст (14–99):")
+    await call.message.answer("Введи новый возраст (6–20):")
     await state.set_state(ProfileEdit.waiting_for_age)
     await call.answer()
 
@@ -52,8 +52,8 @@ async def edit_age(call: CallbackQuery, state: FSMContext) -> None:
 @router.message(ProfileEdit.waiting_for_age)
 async def save_age(message: Message, state: FSMContext) -> None:
     text = (message.text or "").strip()
-    if not text.isdigit() or not 14 <= int(text) <= 99:
-        await message.answer("❗ Возраст должен быть числом от 14 до 99.")
+    if not text.isdigit() or not 6 <= int(text) <= 20:
+        await message.answer("❗ Возраст должен быть числом от 6 до 20.")
         return
     await db.update_user(message.from_user.id, {"age": int(text)})
     await state.clear()

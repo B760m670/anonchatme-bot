@@ -2,11 +2,14 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message
 
+from bot.handlers.search import format_match_message
 from bot.keyboards.chat import BTN_NEXT, BTN_STOP, chat_kb, rating_kb, search_kb
 from bot.keyboards.main_menu import main_menu_kb
-from bot.services import db, matcher
+from bot.services import db, matcher, rooms
 
 router = Router(name="chat")
+
+RATING_PROMPT = "🗣 Можешь оставить отзыв о своем собеседнике?"
 
 
 def _has_media(message: Message) -> bool:
@@ -14,27 +17,14 @@ def _has_media(message: Message) -> bool:
 
 
 async def _send_rating_prompts(bot: Bot, tg_a: int, tg_b: int, dialog_id: int) -> None:
-    text = "Диалог завершён. Оцени собеседника:"
     try:
-        await bot.send_message(tg_a, text, reply_markup=rating_kb(dialog_id, tg_b))
+        await bot.send_message(tg_a, RATING_PROMPT, reply_markup=rating_kb(dialog_id, tg_b))
     except TelegramBadRequest:
         pass
     try:
-        await bot.send_message(tg_b, text, reply_markup=rating_kb(dialog_id, tg_a))
+        await bot.send_message(tg_b, RATING_PROMPT, reply_markup=rating_kb(dialog_id, tg_a))
     except TelegramBadRequest:
         pass
-
-
-async def _end_and_notify(bot: Bot, tg_id: int, partner_tg: int, dialog_id: int) -> None:
-    try:
-        await bot.send_message(
-            partner_tg,
-            "Собеседник завершил диалог.",
-            reply_markup=main_menu_kb(),
-        )
-    except TelegramBadRequest:
-        pass
-    await _send_rating_prompts(bot, tg_id, partner_tg, dialog_id)
 
 
 @router.message(F.text == BTN_STOP)
@@ -45,7 +35,13 @@ async def stop_dialog(message: Message) -> None:
         return
     partner_tg, dialog_id = result
     await message.answer("Диалог завершён.", reply_markup=main_menu_kb())
-    await _end_and_notify(message.bot, message.from_user.id, partner_tg, dialog_id)
+    try:
+        await message.bot.send_message(
+            partner_tg, "Собеседник завершил диалог.", reply_markup=main_menu_kb(),
+        )
+    except TelegramBadRequest:
+        pass
+    await _send_rating_prompts(message.bot, message.from_user.id, partner_tg, dialog_id)
 
 
 @router.message(F.text == BTN_NEXT)
@@ -58,9 +54,7 @@ async def next_dialog(message: Message, user_record: dict | None = None) -> None
     partner_tg, dialog_id = result
     try:
         await message.bot.send_message(
-            partner_tg,
-            "Собеседник вышел из диалога.",
-            reply_markup=main_menu_kb(),
+            partner_tg, "Собеседник вышел из диалога.", reply_markup=main_menu_kb(),
         )
     except TelegramBadRequest:
         pass
@@ -70,21 +64,32 @@ async def next_dialog(message: Message, user_record: dict | None = None) -> None
     if not user:
         return
 
+    room = await rooms.get_room(user["tg_id"])
     new_partner = await matcher.try_match(
-        tg_id=user["tg_id"], age=user["age"], gender=user["gender"], mode="random",
+        tg_id=user["tg_id"], age=user["age"], gender=user["gender"], mode="random", room=room,
     )
     if new_partner is None:
         await message.answer("🔍 Ищу нового собеседника…", reply_markup=search_kb())
         return
 
-    new_dialog = await matcher.start_dialog(user["tg_id"], new_partner, "random")
-    text = "🎉 Новый собеседник! Начинай общение."
-    await message.answer(text, reply_markup=chat_kb())
+    await matcher.start_dialog(user["tg_id"], new_partner, "random", room)
+    partner = await db.get_user_by_tg(new_partner)
+
+    user_premium = db.is_premium(user)
+    partner_premium = bool(partner and db.is_premium(partner))
+
+    await message.answer(
+        format_match_message(room=room, partner=partner or {}, viewer_is_premium=user_premium),
+        reply_markup=chat_kb(),
+    )
     try:
-        await message.bot.send_message(new_partner, text, reply_markup=chat_kb())
+        await message.bot.send_message(
+            new_partner,
+            format_match_message(room=room, partner=user, viewer_is_premium=partner_premium),
+            reply_markup=chat_kb(),
+        )
     except TelegramBadRequest:
         pass
-    _ = new_dialog
 
 
 @router.message(F.chat.type == "private")

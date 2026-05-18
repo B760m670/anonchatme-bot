@@ -20,8 +20,8 @@ WELCOME = (
     "Для начала укажи свой пол:"
 )
 
-AGE_PROMPT = "Сколько тебе лет? Отправь число от 14 до 99."
-AGE_INVALID = "❗ Возраст должен быть числом от 14 до 99. Попробуй ещё раз."
+AGE_PROMPT = "Сколько тебе лет? Отправь число от 6 до 20."
+AGE_INVALID = "❗ Возраст должен быть числом от 6 до 20. Попробуй ещё раз."
 DONE = "✅ Регистрация завершена! Выбирай раздел:"
 
 
@@ -63,7 +63,7 @@ async def pick_age(message: Message, state: FSMContext) -> None:
         await message.answer(AGE_INVALID)
         return
     age = int(text)
-    if not 14 <= age <= 99:
+    if not 6 <= age <= 20:
         await message.answer(AGE_INVALID)
         return
 

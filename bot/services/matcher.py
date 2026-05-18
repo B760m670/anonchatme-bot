@@ -6,9 +6,10 @@ from bot.services.redis_client import get_redis
 AGE_TOLERANCE = 3
 
 Mode = Literal["random", "by_gender"]
+Room = Literal["general", "flirt"]
 
-KEY_QUEUE_RANDOM = "queue:random"
-KEY_QUEUE_GENDER = "queue:gender:{gender}"
+KEY_QUEUE_RANDOM = "queue:room:{room}:random"
+KEY_QUEUE_GENDER = "queue:room:{room}:gender:{gender}"
 KEY_PAIR = "pair:{user_id}"
 KEY_STATE = "state:{user_id}"
 KEY_RATING_TARGET = "rating_target:{user_id}"
@@ -17,47 +18,46 @@ STATE_IDLE = "idle"
 STATE_SEARCHING = "searching"
 STATE_IN_DIALOG = "in_dialog"
 
+_ALL_ROOMS: tuple[Room, ...] = ("general", "flirt")
+
 
 async def get_state(tg_id: int) -> str:
-    r = get_redis()
-    return await r.get(KEY_STATE.format(user_id=tg_id)) or STATE_IDLE
+    return await get_redis().get(KEY_STATE.format(user_id=tg_id)) or STATE_IDLE
 
 
 async def set_state(tg_id: int, state: str) -> None:
-    r = get_redis()
-    await r.set(KEY_STATE.format(user_id=tg_id), state)
+    await get_redis().set(KEY_STATE.format(user_id=tg_id), state)
 
 
 async def clear_state(tg_id: int) -> None:
-    r = get_redis()
-    await r.delete(KEY_STATE.format(user_id=tg_id))
+    await get_redis().delete(KEY_STATE.format(user_id=tg_id))
 
 
 async def get_partner(tg_id: int) -> dict | None:
-    r = get_redis()
-    data = await r.hgetall(KEY_PAIR.format(user_id=tg_id))
+    data = await get_redis().hgetall(KEY_PAIR.format(user_id=tg_id))
     if not data:
         return None
     return {
         "partner_id": int(data["partner_id"]),
         "dialog_id": int(data["dialog_id"]),
         "mode": data.get("mode", "random"),
+        "room": data.get("room", "general"),
         "partner_hide_media": data.get("partner_hide_media") == "1",
     }
 
 
 async def _save_pair(
-    tg_a: int, tg_b: int, dialog_id: int, mode: Mode,
+    tg_a: int, tg_b: int, dialog_id: int, mode: Mode, room: Room,
     hide_media_a: bool, hide_media_b: bool,
 ) -> None:
     r = get_redis()
     pipe = r.pipeline()
     pipe.hset(KEY_PAIR.format(user_id=tg_a), mapping={
-        "partner_id": tg_b, "dialog_id": dialog_id, "mode": mode,
+        "partner_id": tg_b, "dialog_id": dialog_id, "mode": mode, "room": room,
         "partner_hide_media": "1" if hide_media_b else "0",
     })
     pipe.hset(KEY_PAIR.format(user_id=tg_b), mapping={
-        "partner_id": tg_a, "dialog_id": dialog_id, "mode": mode,
+        "partner_id": tg_a, "dialog_id": dialog_id, "mode": mode, "room": room,
         "partner_hide_media": "1" if hide_media_a else "0",
     })
     pipe.set(KEY_STATE.format(user_id=tg_a), STATE_IN_DIALOG)
@@ -73,33 +73,36 @@ async def _clear_pair(tg_a: int, tg_b: int) -> None:
     await pipe.execute()
 
 
-def _queue_key(mode: Mode, user_gender: str) -> str:
+def _search_queue_key(room: Room, mode: Mode, user_gender: str) -> str:
     if mode == "random":
-        return KEY_QUEUE_RANDOM
+        return KEY_QUEUE_RANDOM.format(room=room)
     target = "female" if user_gender == "male" else "male"
-    return KEY_QUEUE_GENDER.format(gender=target)
+    return KEY_QUEUE_GENDER.format(room=room, gender=target)
 
 
-def _my_queue_key(mode: Mode, user_gender: str) -> str:
+def _own_queue_key(room: Room, mode: Mode, user_gender: str) -> str:
     if mode == "random":
-        return KEY_QUEUE_RANDOM
-    return KEY_QUEUE_GENDER.format(gender=user_gender)
+        return KEY_QUEUE_RANDOM.format(room=room)
+    return KEY_QUEUE_GENDER.format(room=room, gender=user_gender)
 
 
 async def remove_from_queues(tg_id: int) -> None:
     r = get_redis()
     pipe = r.pipeline()
-    pipe.zrem(KEY_QUEUE_RANDOM, tg_id)
-    pipe.zrem(KEY_QUEUE_GENDER.format(gender="male"), tg_id)
-    pipe.zrem(KEY_QUEUE_GENDER.format(gender="female"), tg_id)
+    for room in _ALL_ROOMS:
+        pipe.zrem(KEY_QUEUE_RANDOM.format(room=room), tg_id)
+        pipe.zrem(KEY_QUEUE_GENDER.format(room=room, gender="male"), tg_id)
+        pipe.zrem(KEY_QUEUE_GENDER.format(room=room, gender="female"), tg_id)
     await pipe.execute()
 
 
-async def try_match(tg_id: int, age: int, gender: str, mode: Mode) -> int | None:
-    """Try to find a partner. Returns partner tg_id if matched, else enqueues self and returns None."""
+async def try_match(
+    tg_id: int, age: int, gender: str, mode: Mode, room: Room,
+) -> int | None:
+    """Try to find a partner in the given room. Returns partner tg_id or enqueues self."""
     r = get_redis()
-    search_key = _queue_key(mode, gender)
-    own_key = _my_queue_key(mode, gender)
+    search_key = _search_queue_key(room, mode, gender)
+    own_key = _own_queue_key(room, mode, gender)
 
     candidates = await r.zrangebyscore(search_key, age - AGE_TOLERANCE, age + AGE_TOLERANCE)
     for cand in candidates:
@@ -117,7 +120,7 @@ async def try_match(tg_id: int, age: int, gender: str, mode: Mode) -> int | None
     return None
 
 
-async def start_dialog(tg_a: int, tg_b: int, mode: Mode) -> int:
+async def start_dialog(tg_a: int, tg_b: int, mode: Mode, room: Room) -> int:
     user_a = await db.get_user_by_tg(tg_a)
     user_b = await db.get_user_by_tg(tg_b)
     if not user_a or not user_b:
@@ -126,16 +129,16 @@ async def start_dialog(tg_a: int, tg_b: int, mode: Mode) -> int:
         "user_a": user_a["id"],
         "user_b": user_b["id"],
         "mode": mode,
+        "room": room,
     }).execute()
     dialog_id = res.data[0]["id"]
     hide_a = bool((user_a.get("settings") or {}).get("hide_media", False))
     hide_b = bool((user_b.get("settings") or {}).get("hide_media", False))
-    await _save_pair(tg_a, tg_b, dialog_id, mode, hide_a, hide_b)
+    await _save_pair(tg_a, tg_b, dialog_id, mode, room, hide_a, hide_b)
     return dialog_id
 
 
 async def end_dialog(tg_id: int, ended_by_tg: int) -> tuple[int, int] | None:
-    """End the active dialog. Returns (partner_tg_id, dialog_id) or None."""
     pair = await get_partner(tg_id)
     if not pair:
         await clear_state(tg_id)

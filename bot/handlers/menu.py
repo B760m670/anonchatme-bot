@@ -1,17 +1,9 @@
 from aiogram import F, Router
 from aiogram.types import Message
 
-from bot.keyboards.main_menu import BTN_FLIRT, BTN_PROFILE, main_menu_kb
+from bot.keyboards.main_menu import BTN_PROFILE, main_menu_kb
 
 router = Router(name="menu")
-
-
-@router.message(F.text == BTN_FLIRT)
-async def on_flirt(message: Message) -> None:
-    await message.answer(
-        "💖 Флирт-чат — в разработке.\n"
-        "Здесь будет видна анкета собеседника и премиум-статус."
-    )
 
 
 @router.message(F.text == BTN_PROFILE)
