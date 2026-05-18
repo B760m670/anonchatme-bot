@@ -1,15 +1,19 @@
+from datetime import datetime
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards.main_menu import main_menu_kb
-from bot.keyboards.profile import profile_kb, settings_kb
+from bot.keyboards.profile import history_kb, profile_kb, settings_kb
 from bot.services import db
 from bot.states.registration import ProfileEdit
 
 router = Router(name="profile")
 
 GENDER_LABEL = {"male": "🚹 Парень", "female": "🚺 Девушка"}
+MODE_LABEL = {"random": "🔍 Рандом", "by_gender": "🚹🚺 По полу", "flirt": "💖 Флирт"}
+HISTORY_PAGE_SIZE = 5
 
 
 def _format_profile(user: dict) -> str:
@@ -95,3 +99,111 @@ async def premium_info(call: CallbackQuery) -> None:
         "Premium даёт возможность скрыть свои лайки. Покупка появится позже.",
         show_alert=True,
     )
+
+
+@router.callback_query(F.data == "profile:back")
+async def profile_back(call: CallbackQuery) -> None:
+    user = await db.get_user_by_tg(call.from_user.id)
+    if not user:
+        await call.answer()
+        return
+    await call.message.edit_text(_format_profile(user), reply_markup=profile_kb(), parse_mode="HTML")
+    await call.answer()
+
+
+def _parse_ts(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+
+
+def _format_duration(start: datetime, end: datetime | None) -> str:
+    if not end:
+        return "—"
+    seconds = int((end - start).total_seconds())
+    if seconds < 60:
+        return f"{seconds}с"
+    minutes, sec = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}м {sec}с"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}ч {minutes}м"
+
+
+def _format_history_page(
+    user: dict,
+    dialogs: list[dict],
+    ratings: list[dict],
+    page: int,
+    total_pages: int,
+    total: int,
+) -> str:
+    if not dialogs:
+        return "📜 <b>История диалогов</b>\n\nУ тебя пока нет завершённых диалогов."
+
+    my_id = user["id"]
+    ratings_by_dialog: dict[int, dict[str, int | None]] = {}
+    for r in ratings:
+        bucket = ratings_by_dialog.setdefault(r["dialog_id"], {"mine": None, "partner": None})
+        if r["from_user"] == my_id:
+            bucket["mine"] = r["value"]
+        elif r["to_user"] == my_id:
+            bucket["partner"] = r["value"]
+
+    def emoji(v: int | None) -> str:
+        if v == 1:
+            return "👍"
+        if v == -1:
+            return "👎"
+        return "—"
+
+    lines = [
+        f"📜 <b>История диалогов</b> ({total} всего)",
+        f"Страница {page + 1}/{total_pages}",
+        "",
+    ]
+    for d in dialogs:
+        start = _parse_ts(d["started_at"])
+        end = _parse_ts(d.get("ended_at"))
+        mode_label = MODE_LABEL.get(d["mode"], d["mode"])
+        date_str = start.strftime("%d.%m %H:%M") if start else "—"
+        duration = _format_duration(start, end) if start else "—"
+        r = ratings_by_dialog.get(d["id"], {"mine": None, "partner": None})
+        lines.append(
+            f"• <b>{date_str}</b> · {mode_label} · {duration}\n"
+            f"   Моя оценка: {emoji(r['mine'])}  ·  Меня оценили: {emoji(r['partner'])}"
+        )
+    return "\n".join(lines)
+
+
+@router.callback_query(F.data.startswith("profile:history:"))
+async def show_history(call: CallbackQuery) -> None:
+    payload = call.data.split(":", 2)[2]
+    if payload == "noop":
+        await call.answer()
+        return
+    try:
+        page = max(0, int(payload))
+    except ValueError:
+        page = 0
+
+    user = await db.get_user_by_tg(call.from_user.id)
+    if not user:
+        await call.answer("Сначала /start", show_alert=True)
+        return
+
+    total = await db.get_dialog_count(user["id"])
+    total_pages = max(1, (total + HISTORY_PAGE_SIZE - 1) // HISTORY_PAGE_SIZE)
+    page = min(page, total_pages - 1)
+    offset = page * HISTORY_PAGE_SIZE
+
+    dialogs = await db.get_dialog_history(user["id"], limit=HISTORY_PAGE_SIZE, offset=offset)
+    dialog_ids = [d["id"] for d in dialogs]
+    ratings = await db.get_ratings_for_dialogs(dialog_ids, user["id"]) if dialog_ids else []
+
+    text = _format_history_page(user, dialogs, ratings, page, total_pages, total)
+    try:
+        await call.message.edit_text(text, reply_markup=history_kb(page, total_pages), parse_mode="HTML")
+    except Exception:
+        await call.message.answer(text, reply_markup=history_kb(page, total_pages), parse_mode="HTML")
+    await call.answer()

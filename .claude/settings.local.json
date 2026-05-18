@@ -16,7 +16,15 @@
       "Bash(ping -n 5 free-viper-123645.upstash.io)",
       "Bash(nslookup growing-shepherd-128610.upstash.io)",
       "Bash(.venv/Scripts/python.exe -c \"from bot.main import main, _build_dispatcher; from bot.config import settings; print\\('OK: webhook_url=', repr\\(settings.webhook_url\\)\\); print\\('webhook_path=', settings.webhook_path\\); print\\('port=', settings.port\\)\")",
-      "Bash(git --version)"
+      "Bash(git --version)",
+      "Bash(GIT_AUTHOR_NAME=B760m670 GIT_AUTHOR_EMAIL=B760m670@users.noreply.github.com GIT_COMMITTER_NAME=B760m670 GIT_COMMITTER_EMAIL=B760m670@users.noreply.github.com git commit -m ' *)",
+      "Bash(curl -s \"https://api.telegram.org/bot8873321398:AAEAd4MfSj_0hhebPuMnUK5KBYYKGvrAUrg/getWebhookInfo\")",
+      "Bash(curl -sw \"\\\\nhttp_code=%{http_code}\\\\ttotal=%{time_total}s\\\\n\" \"https://anonchatme-bot.onrender.com/health\")",
+      "Bash(curl -m 30 -sw \"\\\\nhttp_code=%{http_code}\\\\ttotal=%{time_total}s\\\\n\" \"https://anonchatme-bot.onrender.com/health\")",
+      "Bash(curl -m 20 -sw \"\\\\nhttp=%{http_code}\\\\ttime=%{time_total}s\\\\n\" \"https://anonchatme-bot.onrender.com/health\")",
+      "Bash(curl -m 10 -s \"https://api.telegram.org/bot8873321398:AAEAd4MfSj_0hhebPuMnUK5KBYYKGvrAUrg/getWebhookInfo\")",
+      "Bash(curl -m 120 -sw \"\\\\nhttp=%{http_code}\\\\ttime=%{time_total}s\\\\n\" \"https://anonchatme-bot.onrender.com/health\")",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.handlers import profile; from bot.services import db; print\\('OK'\\)\")"
     ]
   }
 }

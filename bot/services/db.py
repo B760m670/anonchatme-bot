@@ -74,6 +74,52 @@ async def update_settings(tg_id: int, key: str, value: Any) -> dict[str, Any]:
     return await update_user(tg_id, {"settings": current})
 
 
+def _sync_dialog_history(user_db_id: int, limit: int, offset: int) -> list[dict[str, Any]]:
+    res = (
+        get_db().table("dialogs")
+        .select("id, mode, started_at, ended_at, ended_by, user_a, user_b")
+        .or_(f"user_a.eq.{user_db_id},user_b.eq.{user_db_id}")
+        .order("started_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
+    )
+    return res.data or []
+
+
+def _sync_dialog_count(user_db_id: int) -> int:
+    res = (
+        get_db().table("dialogs")
+        .select("id", count="exact")
+        .or_(f"user_a.eq.{user_db_id},user_b.eq.{user_db_id}")
+        .execute()
+    )
+    return res.count or 0
+
+
+def _sync_ratings_for_dialogs(dialog_ids: list[int], from_db_id: int) -> list[dict[str, Any]]:
+    if not dialog_ids:
+        return []
+    res = (
+        get_db().table("ratings")
+        .select("dialog_id, from_user, to_user, value")
+        .in_("dialog_id", dialog_ids)
+        .execute()
+    )
+    return res.data or []
+
+
+async def get_dialog_history(user_db_id: int, *, limit: int = 5, offset: int = 0) -> list[dict[str, Any]]:
+    return await asyncio.to_thread(_sync_dialog_history, user_db_id, limit, offset)
+
+
+async def get_dialog_count(user_db_id: int) -> int:
+    return await asyncio.to_thread(_sync_dialog_count, user_db_id)
+
+
+async def get_ratings_for_dialogs(dialog_ids: list[int], from_db_id: int) -> list[dict[str, Any]]:
+    return await asyncio.to_thread(_sync_ratings_for_dialogs, dialog_ids, from_db_id)
+
+
 def is_premium(user: dict[str, Any]) -> bool:
     raw = user.get("premium_until")
     if not raw:
