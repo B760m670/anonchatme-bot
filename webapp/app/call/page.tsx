@@ -66,17 +66,35 @@ export default function CallPage() {
 
     const init = async () => {
       try {
+        setStatus(`Параметры: d=${dialogId}, u=${userId}, r=${role}, t=${callType}`);
+        await new Promise((r) => setTimeout(r, 400));
+
+        if (!navigator?.mediaDevices?.getUserMedia) {
+          setError("В этом браузере нет API доступа к камере/микрофону. Откройте звонок в обычном браузере (Chrome/Safari).");
+          setStatus("getUserMedia недоступен");
+          return;
+        }
+
+        setStatus(callType === "video" ? "Запрашиваю камеру и микрофон…" : "Запрашиваю микрофон…");
+
         const constraints: MediaStreamConstraints = {
           audio: true,
           video: callType === "video" ? { facingMode: "user" } : false,
         };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        const mediaPromise = navigator.mediaDevices.getUserMedia(constraints);
+        const timeoutPromise = new Promise<MediaStream>((_, reject) =>
+          setTimeout(() => reject(new Error("getUserMedia не ответил за 25 секунд — Telegram WebView может блокировать. Попробуй открыть звонок в обычном браузере.")), 25000),
+        );
+        const stream = await Promise.race([mediaPromise, timeoutPromise]);
+
         if (aborted) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setStatus("Доступ получен, подключаюсь к серверу…");
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         pcRef.current = pc;
