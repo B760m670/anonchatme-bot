@@ -1,11 +1,20 @@
+import logging
+
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
+from bot.config import settings
 from bot.handlers.search import format_match_message
 from bot.keyboards.chat import BTN_NEXT, BTN_STOP, chat_kb, rating_kb, search_kb
 from bot.keyboards.main_menu import main_menu_kb
-from bot.services import db, matcher, rooms
+from bot.services import db, matcher
+
+log = logging.getLogger(__name__)
 
 router = Router(name="chat")
 
@@ -14,6 +23,43 @@ RATING_PROMPT = "🗣 Можешь оставить отзыв о своем с�
 
 def _has_media(message: Message) -> bool:
     return bool(message.photo or message.video or message.video_note or message.animation)
+
+
+def _is_media_for_admin(message: Message) -> bool:
+    """Все типы медиа, которые имеет смысл отдавать админу на модерацию."""
+    return bool(
+        message.photo or message.video or message.video_note
+        or message.voice or message.audio or message.animation or message.document
+        or message.sticker
+    )
+
+
+async def _forward_media_to_admins(message: Message, partner_tg: int, dialog_id: int) -> None:
+    """Дублирует медиа всем админам с кнопкой «🚫 Бан отправителя»."""
+    if not _is_media_for_admin(message):
+        return
+    sender_tg = message.from_user.id
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=f"🚫 Бан {sender_tg}", callback_data=f"admin:ban:{sender_tg}"),
+    ]])
+    header = (
+        f"📋 <b>Модерация</b>\n"
+        f"Диалог <code>{dialog_id}</code>\n"
+        f"От <code>{sender_tg}</code> → <code>{partner_tg}</code>"
+    )
+    for admin_id in settings.admin_id_list:
+        try:
+            await message.bot.send_message(admin_id, header, parse_mode="HTML")
+            await message.bot.copy_message(
+                chat_id=admin_id,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id,
+                reply_markup=kb,
+            )
+        except TelegramBadRequest as e:
+            log.warning("admin forward failed for %s: %s", admin_id, e)
+        except Exception as e:  # noqa: BLE001
+            log.warning("admin forward error: %s", e)
 
 
 async def _send_rating_prompts(bot: Bot, tg_a: int, tg_b: int, dialog_id: int) -> None:
@@ -115,3 +161,6 @@ async def relay(message: Message) -> None:
         )
     except TelegramBadRequest:
         await message.answer("⚠️ Не удалось доставить сообщение собеседнику.")
+        return
+
+    await _forward_media_to_admins(message, partner_tg, pair["dialog_id"])

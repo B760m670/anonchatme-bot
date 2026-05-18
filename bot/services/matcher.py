@@ -3,13 +3,15 @@ from typing import Literal
 from bot.services import db
 from bot.services.redis_client import get_redis
 
-AGE_TOLERANCE = 3
+AGE_TOLERANCE = 2
+MINOR_MAX_AGE = 17
 
 Mode = Literal["random", "by_gender"]
 Room = Literal["general", "flirt"]
+AgeClass = Literal["minor", "adult"]
 
-KEY_QUEUE_RANDOM = "queue:room:{room}:random"
-KEY_QUEUE_GENDER = "queue:room:{room}:gender:{gender}"
+KEY_QUEUE_RANDOM = "queue:room:{room}:cls:{cls}:random"
+KEY_QUEUE_GENDER = "queue:room:{room}:cls:{cls}:gender:{gender}"
 KEY_PAIR = "pair:{user_id}"
 KEY_STATE = "state:{user_id}"
 KEY_RATING_TARGET = "rating_target:{user_id}"
@@ -19,6 +21,11 @@ STATE_SEARCHING = "searching"
 STATE_IN_DIALOG = "in_dialog"
 
 _ALL_ROOMS: tuple[Room, ...] = ("general", "flirt")
+_ALL_CLASSES: tuple[AgeClass, ...] = ("minor", "adult")
+
+
+def age_class(age: int) -> AgeClass:
+    return "minor" if age <= MINOR_MAX_AGE else "adult"
 
 
 async def get_state(tg_id: int) -> str:
@@ -73,36 +80,39 @@ async def _clear_pair(tg_a: int, tg_b: int) -> None:
     await pipe.execute()
 
 
-def _search_queue_key(room: Room, mode: Mode, user_gender: str) -> str:
+def _search_queue_key(room: Room, cls: AgeClass, mode: Mode, user_gender: str) -> str:
     if mode == "random":
-        return KEY_QUEUE_RANDOM.format(room=room)
+        return KEY_QUEUE_RANDOM.format(room=room, cls=cls)
     target = "female" if user_gender == "male" else "male"
-    return KEY_QUEUE_GENDER.format(room=room, gender=target)
+    return KEY_QUEUE_GENDER.format(room=room, cls=cls, gender=target)
 
 
-def _own_queue_key(room: Room, mode: Mode, user_gender: str) -> str:
+def _own_queue_key(room: Room, cls: AgeClass, mode: Mode, user_gender: str) -> str:
     if mode == "random":
-        return KEY_QUEUE_RANDOM.format(room=room)
-    return KEY_QUEUE_GENDER.format(room=room, gender=user_gender)
+        return KEY_QUEUE_RANDOM.format(room=room, cls=cls)
+    return KEY_QUEUE_GENDER.format(room=room, cls=cls, gender=user_gender)
 
 
 async def remove_from_queues(tg_id: int) -> None:
     r = get_redis()
     pipe = r.pipeline()
     for room in _ALL_ROOMS:
-        pipe.zrem(KEY_QUEUE_RANDOM.format(room=room), tg_id)
-        pipe.zrem(KEY_QUEUE_GENDER.format(room=room, gender="male"), tg_id)
-        pipe.zrem(KEY_QUEUE_GENDER.format(room=room, gender="female"), tg_id)
+        for cls in _ALL_CLASSES:
+            pipe.zrem(KEY_QUEUE_RANDOM.format(room=room, cls=cls), tg_id)
+            pipe.zrem(KEY_QUEUE_GENDER.format(room=room, cls=cls, gender="male"), tg_id)
+            pipe.zrem(KEY_QUEUE_GENDER.format(room=room, cls=cls, gender="female"), tg_id)
     await pipe.execute()
 
 
 async def try_match(
     tg_id: int, age: int, gender: str, mode: Mode, room: Room,
 ) -> int | None:
-    """Try to find a partner in the given room. Returns partner tg_id or enqueues self."""
+    """Try to find a partner in the same room AND same age class.
+    Cross-bucket (minor↔adult) matching is impossible by design."""
     r = get_redis()
-    search_key = _search_queue_key(room, mode, gender)
-    own_key = _own_queue_key(room, mode, gender)
+    cls = age_class(age)
+    search_key = _search_queue_key(room, cls, mode, gender)
+    own_key = _own_queue_key(room, cls, mode, gender)
 
     candidates = await r.zrangebyscore(search_key, age - AGE_TOLERANCE, age + AGE_TOLERANCE)
     for cand in candidates:

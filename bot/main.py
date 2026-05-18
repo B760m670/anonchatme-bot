@@ -10,7 +10,7 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 from aiohttp import web
 
 from bot.config import settings
-from bot.handlers import call, chat, menu, premium, profile, rating, rooms, search, start
+from bot.handlers import admin, call, chat, menu, premium, profile, rating, rooms, search, start
 from bot.middlewares.ban_check import BanCheckMiddleware
 from bot.services.redis_client import close_redis, get_redis
 
@@ -28,6 +28,7 @@ def _build_dispatcher() -> Dispatcher:
     dp.message.middleware(BanCheckMiddleware())
     dp.callback_query.middleware(BanCheckMiddleware())
 
+    dp.include_router(admin.router)
     dp.include_router(start.router)
     dp.include_router(profile.router)
     dp.include_router(rating.router)

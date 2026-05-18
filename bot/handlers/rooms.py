@@ -12,8 +12,6 @@ router = Router(name="rooms")
 
 PREMIUM_WALL_TEXT = (
     "Общайся с 💎 <b>PREMIUM</b> без ограничений!\n\n"
-    "👫 Поиск по полу\n"
-    "🍒 Доступ в Флирт-комнату\n"
     "👥 Видишь пол и возраст собеседника\n"
     "💎 Твой PREMIUM-статус виден всем\n"
     "⚡ Быстрый поиск и никакой рекламы"
@@ -48,13 +46,14 @@ async def set_room(call: CallbackQuery, user_record: dict | None = None) -> None
 
     if target == "flirt":
         user = user_record or await db.get_user_by_tg(call.from_user.id)
-        if not user or not db.is_premium(user):
+        age = (user or {}).get("age") or 0
+        if age < 18:
             await call.message.edit_text(
-                PREMIUM_WALL_TEXT,
-                reply_markup=premium_wall_kb(),
+                "🍒 <b>Флирт-комната доступна только пользователям 18+</b>\n\n"
+                "Для общения тебе подойдёт обычная комната «💬 Общение».",
                 parse_mode="HTML",
             )
-            await call.answer("Флирт-комната доступна только с Premium")
+            await call.answer("Только 18+", show_alert=True)
             return
 
     await rooms.set_room(call.from_user.id, target)

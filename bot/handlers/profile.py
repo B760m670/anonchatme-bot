@@ -44,7 +44,7 @@ async def show_profile(message: Message, user_record: dict | None = None) -> Non
 
 @router.callback_query(F.data == "profile:edit_age")
 async def edit_age(call: CallbackQuery, state: FSMContext) -> None:
-    await call.message.answer("Введи новый возраст (6–20):")
+    await call.message.answer("Введи новый возраст (13–25):")
     await state.set_state(ProfileEdit.waiting_for_age)
     await call.answer()
 
@@ -52,8 +52,8 @@ async def edit_age(call: CallbackQuery, state: FSMContext) -> None:
 @router.message(ProfileEdit.waiting_for_age)
 async def save_age(message: Message, state: FSMContext) -> None:
     text = (message.text or "").strip()
-    if not text.isdigit() or not 6 <= int(text) <= 20:
-        await message.answer("❗ Возраст должен быть числом от 6 до 20.")
+    if not text.isdigit() or not 13 <= int(text) <= 25:
+        await message.answer("❗ Возраст должен быть числом от 13 до 25.")
         return
     await db.update_user(message.from_user.id, {"age": int(text)})
     await state.clear()
@@ -95,10 +95,10 @@ async def settings_back(call: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "profile:premium")
 async def premium_info(call: CallbackQuery) -> None:
-    await call.answer(
-        "Premium даёт возможность скрыть свои лайки. Покупка появится позже.",
-        show_alert=True,
-    )
+    from bot.handlers.rooms import PREMIUM_WALL_TEXT
+    from bot.keyboards.rooms import premium_wall_kb
+    await call.message.edit_text(PREMIUM_WALL_TEXT, reply_markup=premium_wall_kb(), parse_mode="HTML")
+    await call.answer()
 
 
 @router.callback_query(F.data == "profile:back")

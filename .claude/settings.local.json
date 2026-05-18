@@ -27,7 +27,9 @@
       "Bash(.venv/Scripts/python.exe -c \"from bot.handlers import profile; from bot.services import db; print\\('OK'\\)\")",
       "Bash(.venv/Scripts/python.exe -c \"from bot.main import main, _build_dispatcher; from bot.handlers import chat, menu, premium, profile, rating, rooms, search, start; from bot.services import db, matcher, premium as premium_svc, rooms as rooms_svc; print\\('OK'\\)\")",
       "Bash(.venv/Scripts/python.exe -c \"from bot.main import main; from bot.handlers import call; print\\('OK: bot stage 5 imports work'\\)\")",
-      "Bash(curl -m 15 -sw \"\\\\nhttp=%{http_code}\\\\ttime=%{time_total}s\\\\n\" \"https://anonchatme-bot-lcjt.vercel.app/call?d=test&u=1&r=caller&t=audio\")"
+      "Bash(curl -m 15 -sw \"\\\\nhttp=%{http_code}\\\\ttime=%{time_total}s\\\\n\" \"https://anonchatme-bot-lcjt.vercel.app/call?d=test&u=1&r=caller&t=audio\")",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.main import main, _build_dispatcher; from bot.handlers import admin; print\\('OK'\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.main import main, _build_dispatcher; from bot.handlers import admin; from bot.services.matcher import age_class; print\\('OK; age_class\\(15\\)=', age_class\\(15\\), 'age_class\\(20\\)=', age_class\\(20\\)\\)\")"
     ]
   }
 }
