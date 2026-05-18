@@ -10,6 +10,22 @@ type CallType = "audio" | "video";
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  // Free public TURN servers — relay used when direct P2P fails (most home/mobile NATs)
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
 ];
 
 function useQuery() {
@@ -31,6 +47,7 @@ export default function CallPage() {
   const [muted, setMuted] = useState(false);
   const [videoOff, setVideoOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState({ rt: "—", sig: "—", ice: "—", conn: "—" });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -74,12 +91,30 @@ export default function CallPage() {
 
         pc.onconnectionstatechange = () => {
           const state = pc.connectionState;
+          console.log("[pc] connectionState:", state);
+          setDebug((d) => ({ ...d, conn: state }));
           if (state === "connected") setStatus("В разговоре");
+          else if (state === "connecting") setStatus("Устанавливаем соединение…");
           else if (state === "disconnected") setStatus("Разрыв связи…");
           else if (state === "failed") {
             setStatus("Не удалось установить соединение");
             setError("Возможно, NAT блокирует соединение. Попробуйте Wi-Fi.");
           } else if (state === "closed") setStatus("Звонок завершён");
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          console.log("[pc] iceConnectionState:", pc.iceConnectionState);
+          setDebug((d) => ({ ...d, ice: pc.iceConnectionState }));
+          if (pc.iceConnectionState === "checking") setStatus("Пробуем соединиться…");
+          else if (pc.iceConnectionState === "failed") {
+            setStatus("ICE failed");
+            setError("Сеть блокирует звонок (симметричный NAT). Попробуйте другую сеть.");
+          }
+        };
+
+        pc.onsignalingstatechange = () => {
+          console.log("[pc] signalingState:", pc.signalingState);
+          setDebug((d) => ({ ...d, sig: pc.signalingState }));
         };
 
         const channel = supabase.channel(`call:${dialogId}`, {
@@ -124,6 +159,7 @@ export default function CallPage() {
         await new Promise<void>((resolve, reject) => {
           channel.subscribe((status, err) => {
             console.log("Realtime status:", status, err);
+            setDebug((d) => ({ ...d, rt: status }));
             if (status === "SUBSCRIBED") resolve();
             else if (status === "CHANNEL_ERROR") reject(new Error(`Realtime CHANNEL_ERROR: ${err?.message || "проверьте ключ Supabase"}`));
             else if (status === "TIMED_OUT") reject(new Error("Realtime TIMED_OUT — не дождались ответа Supabase"));
@@ -213,6 +249,9 @@ export default function CallPage() {
             ⚠️ {error}
           </div>
         )}
+        <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(0,0,0,0.45)", borderRadius: 8, fontSize: 11, fontFamily: "monospace", display: "inline-block" }}>
+          rt: {debug.rt}  ·  sig: {debug.sig}  ·  ice: {debug.ice}  ·  conn: {debug.conn}
+        </div>
       </div>
 
       <div
