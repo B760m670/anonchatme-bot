@@ -1,19 +1,5 @@
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp: {
-        ready: () => void;
-        expand: () => void;
-        close: () => void;
-        initData: string;
-        initDataUnsafe: { user?: { id: number; first_name?: string } };
-        themeParams: Record<string, string>;
-        colorScheme: "light" | "dark";
-      };
-    };
-  }
-}
-export {};
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/basic-features/typescript for more information.
