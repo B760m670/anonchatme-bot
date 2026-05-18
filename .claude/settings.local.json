@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip --version)",
+      "Bash(python -m venv .venv)",
+      "Bash(.venv/Scripts/python.exe -m pip install --upgrade pip)",
+      "Bash(.venv/Scripts/python.exe -m pip install -r requirements.txt)",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.main import main; print\\('OK: imports work'\\)\")",
+      "Bash(.venv/Scripts/python.exe -m bot.main)",
+      "Bash(curl -s \"https://api.telegram.org/bot8687887949:AAF-CnMeeIPTBt50VJ8zdSVSxh7rHUP5JK0/getWebhookInfo\")",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.main import main; from bot.handlers import chat, menu, profile, rating, search, start; from bot.services import matcher; print\\('OK: all imports work'\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.main import main; print\\('OK'\\)\")",
+      "Bash(curl -w \"\\\\nconnect=%{time_connect}s\\\\ttotal=%{time_total}s\\\\n\" -s -o /dev/null \"https://hxnpaneywrizompuygmu.supabase.co/rest/v1/\")",
+      "Bash(curl -w \"redis_connect=%{time_connect}s\\\\tredis_total=%{time_total}s\\\\n\" -s -o /dev/null \"https://free-viper-123645.upstash.io\")",
+      "WebSearch",
+      "Bash(ping -n 5 free-viper-123645.upstash.io)",
+      "Bash(nslookup growing-shepherd-128610.upstash.io)",
+      "Bash(.venv/Scripts/python.exe -c \"from bot.main import main, _build_dispatcher; from bot.config import settings; print\\('OK: webhook_url=', repr\\(settings.webhook_url\\)\\); print\\('webhook_path=', settings.webhook_path\\); print\\('port=', settings.port\\)\")",
+      "Bash(git --version)"
+    ]
+  }
+}
