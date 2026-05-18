@@ -27,7 +27,8 @@ function useQuery() {
   return params;
 }
 
-function playChime(frequency: number, duration: number) {
+function playConnectTone() {
+  // Single soft tone played once when partner connects — Telegram-style.
   try {
     const AC: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AC) return;
@@ -35,14 +36,14 @@ function playChime(frequency: number, duration: number) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
-    osc.frequency.value = frequency;
+    osc.frequency.setValueAtTime(720, ctx.currentTime);
     osc.connect(gain);
     gain.connect(ctx.destination);
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
     osc.start();
-    osc.stop(ctx.currentTime + duration + 0.05);
+    osc.stop(ctx.currentTime + 0.25);
   } catch {}
 }
 
@@ -131,8 +132,7 @@ export default function CallPage() {
           if (state === "connected") {
             if (!startedAtRef.current) {
               startedAtRef.current = Date.now();
-              playChime(880, 0.18);
-              setTimeout(() => playChime(1175, 0.22), 180);
+              playConnectTone();
             }
             setIsConnected(true);
             setStatus("Соединение установлено");
