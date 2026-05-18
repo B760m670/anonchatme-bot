@@ -8,12 +8,14 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 BTN_NEXT = "⏭ Следующий"
 BTN_STOP = "🛑 Стоп"
+BTN_CALL = "📞 Звонок"
 BTN_CANCEL_SEARCH = "🛑 Отменить поиск"
 
 
 def chat_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.row(KeyboardButton(text=BTN_NEXT), KeyboardButton(text=BTN_STOP))
+    kb.row(KeyboardButton(text=BTN_CALL))
     return kb.as_markup(resize_keyboard=True)
 
 
