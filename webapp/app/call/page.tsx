@@ -122,9 +122,12 @@ export default function CallPage() {
         });
 
         await new Promise<void>((resolve, reject) => {
-          channel.subscribe((status) => {
+          channel.subscribe((status, err) => {
+            console.log("Realtime status:", status, err);
             if (status === "SUBSCRIBED") resolve();
-            else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") reject(new Error("Realtime ошибка"));
+            else if (status === "CHANNEL_ERROR") reject(new Error(`Realtime CHANNEL_ERROR: ${err?.message || "проверьте ключ Supabase"}`));
+            else if (status === "TIMED_OUT") reject(new Error("Realtime TIMED_OUT — не дождались ответа Supabase"));
+            else if (status === "CLOSED") reject(new Error("Realtime CLOSED"));
           });
         });
 
