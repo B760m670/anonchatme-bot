@@ -226,19 +226,30 @@ export default function CallPage() {
     setVideoOff((v) => !v);
   };
 
+  const isConnected = status === "В разговоре";
+  const showAvatar = callType === "audio" || !isConnected;
+
   return (
-    <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "#000" }}>
+    <div
+      className={isConnected && callType === "video" ? "tg-bg-video" : "tg-bg"}
+      style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
+    >
       <video
         ref={remoteVideoRef}
         autoPlay
         playsInline
         style={{
-          flex: 1,
+          position: "absolute",
+          inset: 0,
           width: "100%",
+          height: "100%",
           objectFit: "cover",
-          background: callType === "video" ? "#111" : "transparent",
+          background: "transparent",
+          opacity: isConnected && callType === "video" ? 1 : 0,
+          transition: "opacity 0.4s ease",
         }}
       />
+
       {callType === "video" && (
         <video
           ref={localVideoRef}
@@ -247,63 +258,139 @@ export default function CallPage() {
           muted
           style={{
             position: "absolute",
-            top: 12,
+            top: "calc(12px + env(safe-area-inset-top))",
             right: 12,
-            width: 110,
-            height: 150,
+            width: 100,
+            height: 140,
             objectFit: "cover",
-            borderRadius: 12,
-            border: "2px solid #fff",
-            background: "#222",
+            borderRadius: 14,
+            border: "2px solid rgba(255,255,255,0.7)",
+            background: "#1a1a1a",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
+            zIndex: 5,
           }}
         />
       )}
-      <div style={{ position: "absolute", top: 12, left: 12, right: callType === "video" ? 140 : 12 }}>
-        <div style={{ padding: "8px 14px", background: "rgba(0,0,0,0.45)", borderRadius: 999, display: "inline-block" }}>
-          <span style={{ fontSize: 14 }}>{status}</span>
-        </div>
-        {error && (
-          <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(180,30,30,0.7)", borderRadius: 10, fontSize: 13 }}>
-            ⚠️ {error}
-          </div>
-        )}
-        <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(0,0,0,0.45)", borderRadius: 8, fontSize: 11, fontFamily: "monospace", display: "inline-block" }}>
-          rt: {debug.rt}  ·  sig: {debug.sig}  ·  ice: {debug.ice}  ·  conn: {debug.conn}
-        </div>
-      </div>
 
-      <div
-        style={{
-          padding: "18px 14px calc(18px + env(safe-area-inset-bottom))",
-          display: "flex",
-          gap: 14,
-          justifyContent: "center",
-          background: "linear-gradient(180deg, transparent, rgba(0,0,0,0.65))",
-        }}
-      >
-        <CircleBtn onClick={toggleMute} label={muted ? "🔇" : "🎙"} />
-        {callType === "video" && <CircleBtn onClick={toggleVideo} label={videoOff ? "📷❌" : "📹"} />}
-        <CircleBtn onClick={endCall} label="📞" red />
+      {showAvatar && (
+        <div style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0,
+          paddingTop: "calc(48px + env(safe-area-inset-top))",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          zIndex: 2,
+        }}>
+          <div style={{ position: "relative", width: 140, height: 140 }}>
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: "50%",
+              background: "linear-gradient(135deg, #ffffff33, #ffffff10)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              fontSize: 64,
+            }}>
+              👤
+            </div>
+            {!isConnected && <div className="tg-avatar-pulse" />}
+          </div>
+
+          <div style={{ marginTop: 22, fontSize: 24, fontWeight: 600, textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
+            Анонимный собеседник
+          </div>
+          <div key={status} className="tg-status" style={{
+            marginTop: 8, fontSize: 15, opacity: 0.85,
+            textShadow: "0 1px 6px rgba(0,0,0,0.5)",
+            padding: "0 32px", textAlign: "center",
+          }}>
+            {status}
+          </div>
+        </div>
+      )}
+
+      {isConnected && callType === "video" && (
+        <div style={{
+          position: "absolute",
+          top: "calc(14px + env(safe-area-inset-top))",
+          left: 14,
+          zIndex: 4,
+          padding: "8px 14px",
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderRadius: 999,
+          fontSize: 14,
+        }}>
+          🟢 В разговоре
+        </div>
+      )}
+
+      {error && (
+        <div style={{
+          position: "absolute",
+          left: 14, right: 14,
+          bottom: 130,
+          padding: "10px 14px",
+          background: "rgba(220,40,60,0.85)",
+          borderRadius: 12,
+          fontSize: 13,
+          textAlign: "center",
+          zIndex: 6,
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {process.env.NEXT_PUBLIC_DEBUG !== "off" && (
+        <div style={{
+          position: "absolute",
+          bottom: "calc(120px + env(safe-area-inset-bottom))",
+          left: 14,
+          padding: "5px 10px",
+          background: "rgba(0,0,0,0.4)",
+          borderRadius: 6,
+          fontSize: 10,
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          opacity: 0.7,
+          zIndex: 3,
+        }}>
+          rt:{debug.rt} · sig:{debug.sig} · ice:{debug.ice} · conn:{debug.conn}
+        </div>
+      )}
+
+      <div style={{
+        marginTop: "auto",
+        padding: "26px 22px calc(28px + env(safe-area-inset-bottom))",
+        display: "flex",
+        gap: 18,
+        justifyContent: "center",
+        background: "linear-gradient(180deg, transparent, rgba(0,0,0,0.55))",
+        zIndex: 5,
+      }}>
+        <button
+          className={`tg-ctrl ${muted ? "on" : ""}`}
+          onClick={toggleMute}
+          aria-label={muted ? "Включить микрофон" : "Выключить микрофон"}
+        >
+          {muted ? "🔇" : "🎙"}
+        </button>
+        {callType === "video" && (
+          <button
+            className={`tg-ctrl ${videoOff ? "on" : ""}`}
+            onClick={toggleVideo}
+            aria-label={videoOff ? "Включить камеру" : "Выключить камеру"}
+          >
+            {videoOff ? "📷" : "📹"}
+          </button>
+        )}
+        <button
+          className="tg-ctrl danger"
+          onClick={endCall}
+          aria-label="Завершить звонок"
+        >
+          📞
+        </button>
       </div>
     </div>
-  );
-}
-
-function CircleBtn({ onClick, label, red }: { onClick: () => void; label: string; red?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: 64,
-        height: 64,
-        borderRadius: "50%",
-        border: "none",
-        background: red ? "#d92f3e" : "rgba(255,255,255,0.18)",
-        color: "#fff",
-        fontSize: 22,
-      }}
-    >
-      {label}
-    </button>
   );
 }
