@@ -5,26 +5,51 @@ import { supabase } from "@/lib/supabase";
 import { CLAN_LIST, getClan } from "@/lib/game/clans";
 import { ClanId } from "@/lib/game/types";
 
+function getTgId(): number | null {
+  // 1. URL param (passed by bot handler)
+  const urlId = new URLSearchParams(window.location.search).get("tg");
+  if (urlId) return parseInt(urlId);
+  // 2. Telegram WebApp API
+  const id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  return id ?? null;
+}
+
 export default function CreateCharacter() {
   const [tgId, setTgId] = useState<number | null>(null);
   const [selected, setSelected] = useState<ClanId | null>(null);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
-    setTgId(id);
+    try { window.Telegram?.WebApp?.ready?.(); window.Telegram?.WebApp?.expand?.(); } catch {}
+    setTgId(getTgId());
   }, []);
 
   async function confirm() {
-    if (!selected || !tgId || saving) return;
+    if (!selected || saving) return;
+    if (!tgId) {
+      setError("Не удалось определить твой ID. Открой игру через бота.");
+      return;
+    }
     setSaving(true);
-    await supabase.from("game_characters").upsert({
-      tg_id: tgId, clan: selected, level: 1, xp: 0,
-      wins: 0, losses: 0, elo: 1000, story_chapter: 1, story_enemy_idx: 0,
-    }, { onConflict: "tg_id" });
+    setError(null);
+
+    const { error: dbErr } = await supabase.from("game_characters").upsert(
+      { tg_id: tgId, clan: selected, level: 1, xp: 0, wins: 0, losses: 0, elo: 1000, story_chapter: 1, story_enemy_idx: 0 },
+      { onConflict: "tg_id" }
+    );
+
+    if (dbErr) {
+      setSaving(false);
+      setError(`Ошибка сохранения: ${dbErr.message}`);
+      return;
+    }
+
     setDone(true);
-    setTimeout(() => { window.location.href = "/game"; }, 1200);
+    setTimeout(() => {
+      window.location.href = `/game?tg=${tgId}`;
+    }, 1200);
   }
 
   const clan = selected ? getClan(selected) : null;
@@ -49,6 +74,18 @@ export default function CreateCharacter() {
         <p style={{ fontSize: 13, opacity: 0.55, textAlign: "center", marginBottom: 24 }}>
           Это определит твой стиль боя навсегда
         </p>
+
+        {error && (
+          <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#fca5a5" }}>
+            ⚠️ {error}
+          </div>
+        )}
+
+        {!tgId && (
+          <div style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#fde68a" }}>
+            ⚠️ Открой игру через кнопку в боте для корректной работы
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
           {CLAN_LIST.map((c) => (

@@ -9,7 +9,8 @@ router = Router(name="game")
 
 @router.message(F.text == BTN_GAME)
 async def on_game(message: Message) -> None:
-    url = (settings.webapp_url.rstrip("/") + "/game") if settings.webapp_url else None
+    tg_id = message.from_user.id if message.from_user else 0
+    url = (settings.webapp_url.rstrip("/") + f"/game?tg={tg_id}") if settings.webapp_url else None
 
     text = (
         "⚔️ <b>Тени Эдо</b> — аниме RPG про самураев\n\n"
