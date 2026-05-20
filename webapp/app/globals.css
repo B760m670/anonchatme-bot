@@ -75,3 +75,167 @@ button {
 .tg-ctrl.on       { background: rgba(255,255,255,0.95); color: #1a1a1a; }
 .tg-ctrl.danger   { background: #ee3354; }
 .tg-ctrl.danger:active { background: #d62543; }
+
+/* ════════════════════════════════════════
+   Тени Эдо — Game styles
+   ════════════════════════════════════════ */
+
+@keyframes sakura-fall {
+  0%   { transform: translateY(-20px) rotate(0deg);  opacity: 0.7; }
+  100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+}
+
+@keyframes pvp-pulse {
+  0%, 100% { transform: scale(1);   opacity: 0.6; }
+  50%       { transform: scale(1.15); opacity: 1;   }
+}
+
+@keyframes battle-shake {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-5px); }
+  75%       { transform: translateX(5px); }
+}
+
+@keyframes log-appear {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.game-screen {
+  min-height: 100vh;
+  background: #0d0d1a;
+  color: #fff;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.game-battle-bg {
+  background: radial-gradient(ellipse at top, #1a0a2e 0%, #0d0d1a 60%);
+  display: flex;
+  flex-direction: column;
+}
+
+.sakura-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.sakura-bg::before,
+.sakura-bg::after {
+  content: "🌸 🌸 🌸 🌸 🌸 🌸";
+  position: absolute;
+  top: -40px;
+  left: 0;
+  right: 0;
+  font-size: 16px;
+  letter-spacing: 48px;
+  white-space: nowrap;
+  animation: sakura-fall 14s linear infinite;
+  opacity: 0.12;
+}
+.sakura-bg::after {
+  animation-delay: -7s;
+  animation-duration: 18s;
+  left: 24px;
+}
+
+.game-logo {
+  font-size: 72px;
+  filter: drop-shadow(0 0 24px rgba(251,191,36,0.5));
+  margin-bottom: 8px;
+}
+
+.game-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b, #ef4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+
+.game-sub {
+  font-size: 14px;
+  opacity: 0.45;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.game-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.game-stat-row {
+  display: flex;
+  justify-content: space-around;
+}
+
+.game-btn {
+  display: block;
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  text-align: center;
+}
+.game-btn:active { transform: scale(0.97); }
+
+.game-btn-primary {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(239,68,68,0.35);
+}
+
+.game-btn-secondary {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.16);
+}
+
+.game-btn-ghost {
+  background: none;
+  color: rgba(255,255,255,0.55);
+  font-size: 14px;
+}
+
+/* Battle log */
+.battle-log-entry {
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  animation: log-appear 0.2s ease;
+  line-height: 1.4;
+}
+.log-damage   { color: #f87171; background: rgba(248,113,113,0.08); }
+.log-critical { color: #fbbf24; background: rgba(251,191,36,0.12); font-weight: 700; }
+.log-heal     { color: #4ade80; background: rgba(74,222,128,0.08); }
+.log-status   { color: #c084fc; background: rgba(192,132,252,0.08); }
+.log-info     { color: rgba(255,255,255,0.6); }
+
+/* PvP searching ring */
+.pvp-searching-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid rgba(251,191,36,0.3);
+  border-top-color: #fbbf24;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

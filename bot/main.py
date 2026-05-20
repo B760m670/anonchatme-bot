@@ -10,7 +10,7 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 from aiohttp import web
 
 from bot.config import settings
-from bot.handlers import admin, call, chat, menu, premium, profile, rating, rooms, search, start
+from bot.handlers import admin, call, chat, game, menu, premium, profile, rating, rooms, search, start
 from bot.middlewares.ban_check import BanCheckMiddleware
 from bot.services.redis_client import close_redis, get_redis
 
@@ -36,6 +36,7 @@ def _build_dispatcher() -> Dispatcher:
     dp.include_router(premium.router)
     dp.include_router(call.router)
     dp.include_router(search.router)
+    dp.include_router(game.router)
     dp.include_router(menu.router)
     dp.include_router(chat.router)
     return dp
