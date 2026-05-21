@@ -1,5 +1,6 @@
 export type ClanId = "kage" | "hono" | "koori" | "kaze" | "tetsu";
-export type StatusEffect = "burn" | "poison" | "freeze" | "bleed" | "stun";
+export type Element = "fire" | "ice" | "wind" | "lightning" | "dark";
+export type StatusEffect = "burn" | "poison" | "freeze" | "bleed" | "stun" | "dodge";
 export type BattlePhase = "player_turn" | "enemy_turn" | "animating" | "win" | "lose";
 
 export interface ClanStats {
@@ -13,11 +14,13 @@ export interface Clan {
   id: ClanId;
   name: string;
   emoji: string;
+  element: Element;
   color: string;
   gradient: string;
   tagline: string;
   style: string;
   stats: ClanStats;
+  /** [skill1, skill2, ulta] — последний помечен isUlta */
   skillIds: string[];
 }
 
@@ -29,6 +32,21 @@ export interface SkillEffect {
   statusDuration?: number;
   defBonus?: number;
   atkBonus?: number;
+  // ── расширения для сигнатурных навыков ──
+  /** число ударов (мульти-хит, Кадзэ) */
+  hits?: number;
+  /** урон растёт на % потерянного HP бойца (Хоно) */
+  scaleLostHp?: boolean;
+  /** множитель удваивается, если враг не атаковал в прошлом ходу (Кагэ) */
+  condNoAttack?: boolean;
+  /** % отражения входящего урона (Коори) */
+  reflectPct?: number;
+  /** держать сниженный урон N ходов (Тэцу «Цитадель») */
+  defendTurns?: number;
+  /** контратака при получении урона в защите (Тэцу) */
+  counter?: boolean;
+  /** восстановление Ki при применении */
+  kiGain?: number;
 }
 
 export interface Skill {
@@ -39,6 +57,7 @@ export interface Skill {
   kiCost: number;
   description: string;
   effect: SkillEffect;
+  isUlta?: boolean;
 }
 
 export interface ActiveStatus {
@@ -61,6 +80,15 @@ export interface Fighter {
   statuses: ActiveStatus[];
   isDefending: boolean;
   atkBuff: number;
+  // ── расширения боевого ядра ──
+  ultaUsed: boolean;
+  attackedLastTurn: boolean;
+  /** ходов осталось со сниженным уроном (Тэцу «Цитадель») */
+  defendTurnsLeft: number;
+  /** % отражения урона, активный пока боец защищается */
+  reflectPct: number;
+  /** активна контратака при блоке */
+  counterReady: boolean;
 }
 
 export interface BattleLogEntry {
