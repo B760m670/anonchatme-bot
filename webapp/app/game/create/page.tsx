@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { CLAN_LIST, getClan } from "@/lib/game/clans";
+import { ClanPortrait } from "@/lib/game/ClanPortrait";
 import { ClanId } from "@/lib/game/types";
 
 function getTgId(): number | null {
@@ -101,7 +102,7 @@ export default function CreateCharacter() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 32 }}>{c.emoji}</span>
+                <ClanPortrait clan={c.id} size={52} />
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 17, fontWeight: 700 }}>Клан {c.name}</span>
@@ -113,7 +114,7 @@ export default function CreateCharacter() {
               {selected === c.id && (
                 <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
                   {(["hp", "atk", "def", "spd"] as const).map((stat) => (
-                    <StatBar key={stat} label={stat.toUpperCase()} value={c.stats[stat]} max={130} color={c.color} />
+                    <StatBar key={stat} label={stat.toUpperCase()} value={c.stats[stat]} max={150} color={c.color} />
                   ))}
                 </div>
               )}
